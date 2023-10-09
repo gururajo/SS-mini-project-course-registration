@@ -39,9 +39,13 @@ int main()
         server_address.sin_port = htons(PORT+1);
         if (bind(sockfd, (struct sockaddr *)&server_address, sizeof(server_address)) == -1){
             perror("Error binding socket with 8081");
-            _exit(0);
+            exit(0);
+        }else{
+            cout<<8081<<endl;
         }
     }
+    else 
+        cout<<8080<<endl;
 
     if (listen(sockfd, MAX_CLIENTS) == -1)
     {

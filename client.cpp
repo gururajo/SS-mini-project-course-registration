@@ -7,17 +7,70 @@
 #include <sys/select.h>
 #include <fcntl.h>
 using namespace std;
+
+
+int clientSocketfd;
+
+
+void reset_str(char *str){
+    for(int i=0;i<sizeof(str);i++){
+        str[i]='\0';
+    }
+}
+void* readFromServer(void*) {
+    char buffer[1024];
+    while (true) {
+        reset_str(buffer);
+        ssize_t bytesRead = read(clientSocketfd, buffer, sizeof(buffer));
+        if (bytesRead == -1) {
+            perror("Error reading data from server");
+            break;
+        }
+
+        if (bytesRead == 0) {
+            cout << "Server closed the connection." << endl;
+            break;
+        }   
+        if(strcmp(buffer, "login success") == 0) {
+            system("clear");
+        }
+        // cout << "Received: " << bytesRead << endl;
+        // buffer[bytesRead] = '\0'; // Null-terminate the received data
+        cout << buffer;
+    }
+    return nullptr;
+}
+
+void* cinfromuser(void*){
+    char userInput[1024];
+    while (true) {
+        // cout<<"readyto read"<<endl;
+        cin >>userInput;
+        // cout<<"GIT:"<<userInput<<endl;
+        if (strcmp(userInput, "quit") == 0) {
+            break; // Exit the loop
+        }
+
+        ssize_t bytesSent = write(clientSocketfd, userInput, strlen(userInput));
+        if (bytesSent == -1) {
+            perror("Error sending data to server");
+            break;
+        }
+    }
+    return nullptr;
+}
+
 int main(int argc, char **argv) {
     if (argc != 3) {
-        std::cerr << "Usage: " << argv[0] << " <server_ip> <server_port>" << std::endl;
+        cerr << "Usage: " << argv[0] << " <server_ip> <server_port>" << endl;
         return 1;
     }
 
     const char* serverIp = argv[1];
-    int serverPort = std::atoi(argv[2]);
+    int serverPort = atoi(argv[2]);
     // Create a socket
-    int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientSocket == -1) {
+    clientSocketfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientSocketfd == -1) {
         perror("Error creating socket");
         return 1;
     }
@@ -25,72 +78,27 @@ int main(int argc, char **argv) {
     // Server address and port
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(8080); // Change this to the server's port
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1"); // Change this to the server's IP address
+    serverAddr.sin_port = htons(serverPort); // Change this to the server's port
+    serverAddr.sin_addr.s_addr = inet_addr(serverIp); // Change this to the server's IP address
 
     // Connect to the server
-    if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
+    if (connect(clientSocketfd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
         perror("Error connecting to server");
         return 1;
     }
 
-    // Make the socket non-blocking
-    int flags = fcntl(clientSocket, F_GETFL, 0);
-    fcntl(clientSocket, F_SETFL, flags | O_NONBLOCK);
+    // Mpthread_t threadID;
+    pthread_t threadIDread, threadIDcin;
+    pthread_create(&threadIDread, NULL, readFromServer,NULL);
+    pthread_create(&threadIDcin, NULL, cinfromuser,NULL);
 
-    char buffer[1024];
-    char userInput[1024];
-
-    while (true) {
-        fd_set readSet;
-        FD_ZERO(&readSet);
-        FD_SET(STDIN_FILENO, &readSet);
-        FD_SET(clientSocket, &readSet);
-
-        // Use select to monitor both stdin and the socket for reading
-        int maxFd = max(STDIN_FILENO, clientSocket) + 1;
-        int ready = select(maxFd, &readSet, NULL, NULL, NULL);
-
-        if (ready == -1) {
-            perror("Error in select");
-            break;
-        }
-
-        if (FD_ISSET(STDIN_FILENO, &readSet)) {
-            // User has input
-            cin.getline(userInput, sizeof(userInput));
-
-            if (strcmp(userInput, "quit") == 0) {
-                break; // Exit the loop
-            }
-
-            ssize_t bytesSent = write(clientSocket, userInput, strlen(userInput));
-            if (bytesSent == -1) {
-                perror("Error sending data to server");
-                break;
-            }
-        }
-
-        if (FD_ISSET(clientSocket, &readSet)) {
-            // Server has sent data
-            ssize_t bytesRead = read(clientSocket, buffer, sizeof(buffer));
-            if (bytesRead == -1) {
-                perror("Error reading data from server");
-                break;
-            }
-
-            if (bytesRead == 0) {
-                cout << "Server closed the connection." << endl;
-                break;
-            }
-
-            buffer[bytesRead] = '\0'; // Null-terminate the received data
-            cout << buffer;
-        }
-    }
+    
 
     // Close the socket
-    close(clientSocket);
+
+    pthread_join(threadIDread, NULL);
+    pthread_join(threadIDcin, NULL);
+    close(clientSocketfd);
 
     return 0;
 }
