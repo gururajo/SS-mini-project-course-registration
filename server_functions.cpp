@@ -338,7 +338,7 @@ bool read_faculty_id(int clientfd, char *buf, int &faculty_index)
     reset_str(buf, BUF_SIZE);
     if (read_client(clientfd, buf) == -1)
         return false;
-    if (faculty_index = validate_faculty_id(buf) == -1)
+    if ((faculty_index = validate_faculty_id(buf)) == -1)
     {
         write_client(clientfd, "WRONG Faculty id\r\n");
         return false;
@@ -628,7 +628,7 @@ void handle_admin(int clientfd, char *username)
         {
             if (write_client(clientfd, "UPDATE Student\r\n") == -1)
             {
-                return;
+                break;
             }
             int student_index;
             if (!read_student_id(clientfd, buf, student_index))
@@ -652,9 +652,35 @@ void handle_admin(int clientfd, char *username)
         }
         break;
         case '8':
-            break;
+        {
+            if (write_client(clientfd, "UPDATE faculty\r\n") == -1)
+            {
+                break;
+            }
+            int faculty_index;
+            if (!read_faculty_id(clientfd, buf, faculty_index))
+                break;
+            faculty_struct *faculty_data = (faculty_struct *)malloc(sizeof(faculty_struct));
+            if (!read_record(faculty_fd, faculty_data, faculty_index, sizeof(faculty_struct)))
+            {
+                write_client(clientfd, "ERROR reading file");
+                break;
+            }
+            // faculty_data->status = true;
+            faculty_struct faculty_data_to_write = *faculty_data;
+            tostring_faculty(faculty_data, buf);
+            write_client(clientfd, buf);
+            cin_faculty(clientfd, faculty_data_to_write);
+            write_faculty(clientfd, faculty_data_to_write, faculty_index);
+            // write_record(students_fd, student_data_to_write, student_index, sizeof(faculty_struct));
+            write_client(clientfd, "Student Updated\r\n");
+            free(faculty_data);
+            sleep(3);
+        }
+        break;
         case '9':
-            break;
+            // break;
+            return;
         default:
             break;
         }
