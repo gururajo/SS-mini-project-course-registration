@@ -26,7 +26,7 @@ int main()
     ss.b = true;
     se = ss;
     sd = new some;
-    *sd = ss;
+    ss = *sd;
     cout << ss.s << endl;
     cout << se.s << endl;
     cout << sd->s << endl;

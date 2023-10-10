@@ -48,6 +48,26 @@ void reset_str(char *str, int size)
     }
 }
 
+int validate_student_id(char *username)
+{
+    int student_index = atoi(substr(username, 2, strlen(username)));
+    if (username[0] != 'M' || username[1] != 'T' || student_index >= student_count)
+    {
+        return -1;
+    }
+    return student_index;
+}
+
+int validate_faculty_id(char *username)
+{
+    int faculty_index = atoi(substr(username, 2, strlen(username)));
+    if (username[0] != 'M' || username[1] != 'T' || faculty_index >= faculty_count)
+    {
+        return -1;
+    }
+    return faculty_index;
+}
+
 int write_client(int clientfd, const char *data)
 {
     int wrote;
@@ -291,12 +311,88 @@ void write_student(int clientfd, student_struct &student)
     write(detailsfd, &student_count, sizeof(student_count));
 }
 
-void cin_faculty(int clientfd, faculty_struct &faculty)
+bool cin_faculty(int clientfd, faculty_struct &faculty)
 {
+    char buf[BUF_SIZE];
+    if (write_client(clientfd, "Name:\r\n") == -1)
+        return false;
+    reset_str(buf, BUF_SIZE);
+    if (read_client(clientfd, buf) == -1)
+        return false;
+    strcpy(faculty.name, buf);
+
+    if (write_client(clientfd, "Department:\r\n") == -1)
+        return false;
+    reset_str(buf, BUF_SIZE);
+    if (read_client(clientfd, buf) == -1)
+    {
+        perror("read");
+        return false;
+    }
+    strcpy(faculty.department, buf);
+
+    if (write_client(clientfd, "Email:\r\n") == -1)
+    {
+        perror("write");
+        return false;
+    }
+    reset_str(buf, BUF_SIZE);
+    if (read_client(clientfd, buf) == -1)
+    {
+        perror("read");
+        return false;
+    }
+    strcpy(faculty.email, buf);
+
+    if (write_client(clientfd, "Designation:\r\n") == -1)
+    {
+        perror("write");
+        return false;
+    }
+    reset_str(buf, BUF_SIZE);
+    if (read_client(clientfd, buf) == -1)
+    {
+        perror("read");
+        return false;
+    }
+    strcpy(faculty.designation, buf);
+
+    if (write_client(clientfd, "Address:\r\n") == -1)
+    {
+        perror("write");
+        return false;
+    }
+    reset_str(buf, BUF_SIZE);
+    if (read_client(clientfd, buf) == -1)
+    {
+        perror("read");
+        return false;
+    }
+    strcpy(faculty.address, buf);
+
+    char username[SMALL_BUF_SIZE];
+    // strcpy(usernme, "MT");
+    sprintf(username, "FC%d", faculty_count);
+    strcpy(faculty.username, username);
+
+    for (int i = 0; i < 20; i++)
+    {
+        reset_str(faculty.courses_offered[i], SMALL_BUF_SIZE);
+    }
+
+    faculty.courses_offered_count = 0;
+    return true;
 }
 
 void write_faculty(int clientfd, faculty_struct &faculty)
 {
+
+    lseek(faculty_fd, 0, SEEK_END);
+    write(faculty_fd, &faculty, sizeof(faculty));
+    load_details();
+    faculty_count++;
+    lseek(detailsfd, sizeof(int), SEEK_SET);
+    write(detailsfd, &faculty_count, sizeof(faculty_count));
 }
 
 bool read_record(int filefd, void *add, int index, size_t size)
@@ -345,6 +441,7 @@ void handle_admin(int clientfd, char *username)
         switch (revd[0])
         {
         case '1':
+        {
             if (write_client(clientfd, "Adding a Student\r\n") == -1)
             {
                 return;
@@ -352,11 +449,13 @@ void handle_admin(int clientfd, char *username)
             student_struct student;
             cin_student(clientfd, student);
             write_student(clientfd, student);
-            if (write_client(clientfd, "SUCCESSfully added student\r\n") == -1)
+            sprintf(buf, "SUCCESSfully added student %s\r\n", student.username);
+            if (write_client(clientfd, buf) == -1)
             {
                 return;
             }
-            break;
+        }
+        break;
         case '2':
         {
             if (write_client(clientfd, "Give the Student_id\r\n") == -1)
@@ -364,18 +463,13 @@ void handle_admin(int clientfd, char *username)
             reset_str(buf, BUF_SIZE);
             if (read_client(clientfd, buf) == -1)
                 return;
-            if (buf[0] != 'M' || buf[1] != 'T')
+            int student_index;
+            if (student_index = validate_student_id(buf) == -1)
             {
                 write_client(clientfd, "WRONG student id");
                 break;
             }
-            int student_index = atoi(substr(buf, 2, strlen(buf)));
             student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
-            if (student_index >= student_count)
-            {
-                write_client(clientfd, "WRONG student id");
-                break;
-            }
             if (!read_record(students_fd, student_data, student_index, sizeof(student_struct)))
             {
                 return;
@@ -388,16 +482,52 @@ void handle_admin(int clientfd, char *username)
             sleep(3);
         }
         break;
-
         case '3':
+        {
+            if (write_client(clientfd, "Adding a Faculty\r\n") == -1)
+            {
+                return;
+            }
             faculty_struct faculty;
             cin_faculty(clientfd, faculty);
             write_faculty(clientfd, faculty);
-            break;
+            sprintf(buf, "SUCCESSfully added Faculty %s\r\n", faculty.username);
+            if (write_client(clientfd, buf) == -1)
+            {
+                return;
+            }
+        }
+        break;
         case '4':
-            break;
+        {
+            if (write_client(clientfd, "Give the Faculty_id\r\n") == -1)
+                return;
+            reset_str(buf, BUF_SIZE);
+            if (read_client(clientfd, buf) == -1)
+                return;
+            int faculty_index;
+            if (faculty_index = validate_student_id(buf) == -1)
+            {
+                write_client(clientfd, "WRONG Faculty id");
+                break;
+            }
+            faculty_struct *faculty_data = (faculty_struct *)malloc(sizeof(faculty_struct));
+            if (!read_record(faculty_fd, faculty_data, faculty_index, sizeof(faculty_struct)))
+            {
+                return;
+            }
+            // string det = "Name: "+ string(faculty_data->name)+"\n"
+            // char age[SMALL_BUF_SIZE];
+            // sprintf(age, "%d", faculty_data->age);
+            write_client(clientfd, string("Name: " + string(faculty_data->name) + "\nEmail: " + string(faculty_data->email) + "\nDepartment: " + string(faculty_data->department) + "\nAddress: " + string(faculty_data->address) + "Department: " + string(faculty_data->department) + "\r\n").c_str());
+            free(faculty_data);
+            sleep(3);
+        }
+        break;
         case '5':
-            break;
+        {
+        }
+        break;
         case '6':
             break;
         case '7':
