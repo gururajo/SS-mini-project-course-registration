@@ -57,9 +57,23 @@ char *substr(char *arr, int begin, int len)
     return res;
 }
 
+void tostring_student(student_struct *student, char *ret)
+{
+    char age[SMALL_BUF_SIZE];
+    sprintf(age, "%d", student->age);
+    strcpy(ret, string("Name: " + string(student->name) + "\nEmail: " + string(student->email) + "\nAge: " + string(age) + "\nAddress: " + string(student->address) + "\nStatus: " + string((student->status) ? "Active\r\n" : "Inactive\r\n")).c_str());
+}
+
+void tostring_faculty(faculty_struct *faculty, char *ret)
+{
+    strcpy(ret, string("Name: " + string(faculty->name) + "\nEmail: " + string(faculty->email) + "\nDepartment: " + string(faculty->department) + "\nAddress: " + string(faculty->address) + "Department: " + string(faculty->department) + "\r\n").c_str());
+}
+
 int validate_student_id(char *username)
 {
+    cout << "substr: " << substr(username, 2, strlen(username)) << endl;
     int student_index = atoi(substr(username, 2, strlen(username)));
+    // cout << "student_index3: " << student_index << endl;
     if (username[0] != 'M' || username[1] != 'T' || student_index >= student_count)
     {
         return -1;
@@ -70,7 +84,7 @@ int validate_student_id(char *username)
 int validate_faculty_id(char *username)
 {
     int faculty_index = atoi(substr(username, 2, strlen(username)));
-    if (username[0] != 'M' || username[1] != 'T' || faculty_index >= faculty_count)
+    if (username[0] != 'F' || username[1] != 'C' || faculty_index >= faculty_count)
     {
         return -1;
     }
@@ -307,11 +321,13 @@ bool read_student_id(int clientfd, char *buf, int &student_index)
     reset_str(buf, BUF_SIZE);
     if (read_client(clientfd, buf) == -1)
         return false;
-    if (student_index = validate_student_id(buf) == -1)
+
+    if ((student_index = validate_student_id(buf)) == -1)
     {
         write_client(clientfd, "WRONG student id\n\r");
         return false;
     }
+    // cout << "Student index2: " << student_index << endl;
     return true;
 }
 
@@ -322,7 +338,7 @@ bool read_faculty_id(int clientfd, char *buf, int &faculty_index)
     reset_str(buf, BUF_SIZE);
     if (read_client(clientfd, buf) == -1)
         return false;
-    if (faculty_index = validate_student_id(buf) == -1)
+    if (faculty_index = validate_faculty_id(buf) == -1)
     {
         write_client(clientfd, "WRONG Faculty id\r\n");
         return false;
@@ -339,9 +355,12 @@ void write_student(int clientfd, student_struct &student, int index)
         lseek(students_fd, index * sizeof(student), SEEK_SET);
     write(students_fd, &student, sizeof(student));
     load_details();
-    student_count++;
-    lseek(detailsfd, 0, SEEK_SET);
-    write(detailsfd, &student_count, sizeof(student_count));
+    if (index == -1)
+    {
+        student_count++;
+        lseek(detailsfd, 0, SEEK_SET);
+        write(detailsfd, &student_count, sizeof(student_count));
+    }
 }
 
 bool cin_faculty(int clientfd, faculty_struct &faculty)
@@ -425,14 +444,18 @@ void write_faculty(int clientfd, faculty_struct &faculty, int index)
         lseek(faculty_fd, index * sizeof(faculty), SEEK_SET);
     write(faculty_fd, &faculty, sizeof(faculty));
     load_details();
-    faculty_count++;
-    lseek(detailsfd, sizeof(int), SEEK_SET);
-    write(detailsfd, &faculty_count, sizeof(faculty_count));
+    if (index == -1)
+    {
+        faculty_count++;
+        lseek(detailsfd, sizeof(int), SEEK_SET);
+        write(detailsfd, &faculty_count, sizeof(faculty_count));
+    }
 }
 
 bool read_record(int filefd, void *add, int index, size_t size)
 {
-    lseek(filefd, index * size, SEEK_SET);
+    cout << "index: " << index << " size: " << size << endl;
+    cout << "lseek: " << lseek(filefd, index * size, SEEK_SET) << endl;
     if (read(filefd, add, size) == -1)
     {
         perror("read");
@@ -506,6 +529,7 @@ void handle_admin(int clientfd, char *username)
             int student_index;
             if (!read_student_id(clientfd, buf, student_index))
                 break;
+            cout << "student_index: " << student_index << endl;
             student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
             if (!read_record(students_fd, student_data, student_index, sizeof(student_struct)))
             {
@@ -513,9 +537,9 @@ void handle_admin(int clientfd, char *username)
                 break;
             }
             // string det = "Name: "+ string(student_data->name)+"\n"
-            char age[SMALL_BUF_SIZE];
-            sprintf(age, "%d", student_data->age);
-            write_client(clientfd, string("Name: " + string(student_data->name) + "\nEmail: " + string(student_data->email) + "\nAge: " + string(age) + "\nAddress: " + string(student_data->address) + "\nStatus: " + string((student_data->status) ? "Active\r\n" : "Inactive\r\n")).c_str());
+
+            tostring_student(student_data, buf);
+            write_client(clientfd, buf);
             free(student_data);
             sleep(3);
         }
@@ -550,7 +574,8 @@ void handle_admin(int clientfd, char *username)
             // string det = "Name: "+ string(faculty_data->name)+"\n"
             // char age[SMALL_BUF_SIZE];
             // sprintf(age, "%d", faculty_data->age);
-            write_client(clientfd, string("Name: " + string(faculty_data->name) + "\nEmail: " + string(faculty_data->email) + "\nDepartment: " + string(faculty_data->department) + "\nAddress: " + string(faculty_data->address) + "Department: " + string(faculty_data->department) + "\r\n").c_str());
+            tostring_faculty(faculty_data, buf);
+            write_client(clientfd, buf);
             free(faculty_data);
             sleep(3);
         }
@@ -571,14 +596,61 @@ void handle_admin(int clientfd, char *username)
             write_student(clientfd, student_data_to_write, student_index);
             // write_record(students_fd, student_data_to_write, student_index, sizeof(student_struct));
             write_client(clientfd, "Student Activated\r\n");
+            tostring_student(student_data, buf);
+            write_client(clientfd, buf);
             free(student_data);
             sleep(3);
         }
         break;
         case '6':
-            break;
+        {
+            int student_index;
+            if (!read_student_id(clientfd, buf, student_index))
+                break;
+            student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            if (!read_record(students_fd, student_data, student_index, sizeof(student_struct)))
+            {
+                write_client(clientfd, "ERROR reading file");
+                break;
+            }
+            student_data->status = false;
+            student_struct student_data_to_write = *student_data;
+            write_student(clientfd, student_data_to_write, student_index);
+            // write_record(students_fd, student_data_to_write, student_index, sizeof(student_struct));
+            write_client(clientfd, "Student Activated\r\n");
+            tostring_student(student_data, buf);
+            write_client(clientfd, buf);
+            free(student_data);
+            sleep(3);
+        }
+        break;
         case '7':
-            break;
+        {
+            if (write_client(clientfd, "UPDATE Student\r\n") == -1)
+            {
+                return;
+            }
+            int student_index;
+            if (!read_student_id(clientfd, buf, student_index))
+                break;
+            student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            if (!read_record(students_fd, student_data, student_index, sizeof(student_struct)))
+            {
+                write_client(clientfd, "ERROR reading file");
+                break;
+            }
+            // student_data->status = true;
+            student_struct student_data_to_write = *student_data;
+            tostring_student(student_data, buf);
+            write_client(clientfd, buf);
+            cin_student(clientfd, student_data_to_write);
+            write_student(clientfd, student_data_to_write, student_index);
+            // write_record(students_fd, student_data_to_write, student_index, sizeof(student_struct));
+            write_client(clientfd, "Student Updated\r\n");
+            free(student_data);
+            sleep(3);
+        }
+        break;
         case '8':
             break;
         case '9':
