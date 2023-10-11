@@ -35,7 +35,7 @@ struct faculty_struct
 
 struct course_struct
 {
-    char name[SMALL_BUF_SIZE], course_id[SMALL_BUF_SIZE], department[SMALL_BUF_SIZE];
+    char name[SMALL_BUF_SIZE], course_id[SMALL_BUF_SIZE], department[SMALL_BUF_SIZE], offered_by[SMALL_BUF_SIZE];
     int no_of_seats, available_seats, credits;
     bool status;
 };
@@ -88,6 +88,16 @@ void tostring_faculty(faculty_struct *faculty, char *ret)
     strcpy(ret, string("Name: " + string(faculty->name) + "\nEmail: " + string(faculty->email) + "\nDepartment: " + string(faculty->department) + "\nAddress: " + string(faculty->address) + "\nDesignation: " + string(faculty->designation) + "\r\n").c_str());
 }
 
+void tostring_course(course_struct *course_data, char *ret)
+{
+
+    char no_of_seats[SMALL_BUF_SIZE], credits[SMALL_BUF_SIZE], no_of_available_seats[SMALL_BUF_SIZE];
+    sprintf(no_of_seats, "%d", course_data->no_of_seats);
+    sprintf(credits, "%d", course_data->credits);
+    sprintf(no_of_available_seats, "%d", course_data->available_seats);
+    strcpy(ret, string("Name: " + string(course_data->name) + "\nDepartment: " + string(course_data->department) + "\nOffered By: " + string(course_data->offered_by) + "\nTotal Seats: " + string(no_of_seats) + "\nCredits: " + string(credits) + "\nAvailable Seats: " + string(no_of_available_seats) + "\nStatus: " + string((course_data->status) ? "Active" : "Inactive") + "\r\n").c_str());
+}
+
 int validate_student_id(char *username)
 {
     cout << "substr: " << substr(username, 2, strlen(username)) << endl;
@@ -108,6 +118,16 @@ int validate_faculty_id(char *username)
         return -1;
     }
     return faculty_index;
+}
+
+int validate_course_id(char *course_id)
+{
+    int course_index = atoi(substr(course_id, 2, strlen(course_id)));
+    if (course_id[0] != 'C' || course_id[1] != 'O' || course_index >= course_count)
+    {
+        return -1;
+    }
+    return course_index;
 }
 
 int write_client(int clientfd, const char *data)
@@ -608,11 +628,11 @@ bool cin_course(int clientfd, course_struct &course, char *faculty_id)
 
     course.status = true;
 
-    strcpy(course.department, faculty_id);
+    strcpy(course.offered_by, faculty_id);
 
     char username[SMALL_BUF_SIZE];
     // strcpy(usernme, "MT");
-    sprintf(username, "CO%d", faculty_count);
+    sprintf(username, "CO%d", course_count);
     strcpy(course.course_id, username);
 
     return true;
@@ -874,23 +894,19 @@ void handle_admin(int clientfd, char *username)
 void handle_student(int clientfd, char *username)
 {
     char revd[BUF_SIZE], buf[BUF_SIZE];
+    student_struct student_data_main;
+    int student_index;
+    student_index = validate_student_id(username);
+    read_record(students_fd, &student_data_main, student_index, sizeof(student_struct));
 
     while (1)
     {
         load_details();
-        string msg = string(".......... Welcome to Student Menu ..........\n1. View All "
-                            "Courses\n2. Enroll New Course\n3. Drop Course\n4. View Enrolled "
-                            "Course Details\n5. Change Password\n6. Logout and Exit\r\n");
-        sprintf(buf, "%d", student_count);
-        msg += "Students: " + string(buf);
-        sprintf(buf, "%d", faculty_count);
-        msg += "\tFaculties: " + string(buf);
-        sprintf(buf, "%d", course_count);
-        msg += "\tCourses: " + string(buf);
-        msg += "\r\n";
-        char student_options[msg.size() + 1];
-        strcpy(student_options, msg.c_str());
-        if (write(clientfd, student_options, strlen(student_options)) == -1)
+
+        char msg[2 * BUF_SIZE];
+        sprintf(msg, ".......... Welcome to Student Menu %s  ..........\n1. View All Courses\n2. Enroll New Course\n3. Drop Course\n4. View Enrolled Course Details\n5. Change Password\n6. Logout and Exit\r\nStudents: %d\tFaculties: %d\tCourses: %d\r\n", student_data_main.name, student_count, faculty_count, course_count);
+
+        if (write(clientfd, msg, strlen(msg)) == -1)
 
         {
             perror("Write");
@@ -901,6 +917,37 @@ void handle_student(int clientfd, char *username)
         {
             perror("Read");
             return;
+        }
+
+        switch (revd[0])
+        {
+        case '1':
+            break;
+        case '2':
+            break;
+        case '3':
+            break;
+        case '4':
+            break;
+        case '5':
+        {
+            reset_str(buf, BUF_SIZE);
+            write_client(clientfd, "Give the Password (not gonna ask again)\r\n");
+            read_client(clientfd, buf);
+            strcpy(student_data_main.password, buf);
+
+            write_student(clientfd, student_data_main, student_index);
+            // write_record(students_fd, student_data_to_write, student_index, sizeof(faculty_struct));
+            write_client(clientfd, "Password UPdated\r\n");
+            tostring_student(&student_data_main, buf);
+            write_client(clientfd, buf);
+            sleep(3);
+        }
+        break;
+        case '6':
+            return;
+        default:
+            break;
         }
     }
 }
@@ -916,22 +963,10 @@ void handle_faculty(int clientfd, char *username)
     while (1)
     {
         load_details();
-        // string msg = string(".......... Welcome to Faculty Menu "
-        //                     " ..........\n1. View Offering "
-        //                     "Courses\n2. Add New Course\n3. Remove Course\n4. Update Course "
-        //                     "Details\n5. Change Password\n6. Logout and Exit\r\n");
-        // sprintf(buf, "%d", student_count);
-        // msg += "Students: " + string(buf);
-        // sprintf(buf, "%d", faculty_count);
-        // msg += "\tFaculties: " + string(buf);
-        // sprintf(buf, "%d", course_count);
-        // msg += "\tCourses: " + string(buf);
-        // msg += "\r\n";
 
         char msg[2 * BUF_SIZE];
-        sprintf(msg, ".......... Welcome to Faculty Menu %s  ..........\n1. View Offering Courses\n2. Add New Course\n3. Remove Course\n4. Update Course Details\n5. Change Password\n6. Logout and Exit\r\nStudents: %d\tFaculties: %d\tCourses: %d\r\n", faculty_data_main.name, student_count, faculty_count, course_count);
-        // char faculty_options[msg.size() + 1];
-        // strcpy(faculty_options, msg.c_str());
+        sprintf(msg, ".......... Welcome to Faculty Menu %s  ..........\n1. View Offering Courses\n2. Add New Course\n3. Activate/Inactivate Course\n4. Update Course Details\n5. Change Password\n6. Logout and Exit\r\nStudents: %d\tFaculties: %d\tCourses: %d\r\n", faculty_data_main.name, student_count, faculty_count, course_count);
+
         if (write(clientfd, msg, strlen(msg)) == -1)
 
         {
@@ -947,9 +982,63 @@ void handle_faculty(int clientfd, char *username)
         switch (revd[0])
         {
         case '1':
-            break;
+        {
+            char courses_string[BUF_SIZE];
+            char temp[BUF_SIZE];
+            reset_str(courses_string, BUF_SIZE);
+            for (int i = 0; i < faculty_data_main.courses_offered_count; i++)
+            {
+                reset_str(temp, BUF_SIZE);
+                sprintf(temp, "%d: %s\n", i, faculty_data_main.courses_offered[i]);
+                strcat(courses_string, temp);
+            }
+            if (write_client(clientfd, courses_string) == -1)
+            {
+                break;
+            }
+            int course_index_of_course;
+            reset_str(buf, BUF_SIZE);
+            if (read_client(clientfd, buf) == -1)
+            {
+                break;
+            }
+            if (!is_number(buf))
+            {
+                write_client(clientfd, "WRONG option\r\n");
+                break;
+            }
+            course_index_of_course = atoi(buf);
+            int course_index;
+            course_index = validate_course_id(faculty_data_main.courses_offered[course_index_of_course]);
+            if (course_index < 0)
+            {
+                cout << "Course error" << endl;
+                break;
+            }
+            course_struct course_data;
+            if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
+            {
+                cout << "Error reading course file" << endl;
+                break;
+            }
+            tostring_course(&course_data, buf);
+            if (write_client(clientfd, buf) == -1)
+            {
+                break;
+            }
+            sleep(3);
+        }
+
+        break;
         case '2':
         {
+            if (faculty_data_main.courses_offered_count >= 20)
+            {
+                if (write_client(clientfd, "Cannot Add any more courses(Max 20)\r\n") == -1)
+                {
+                    return;
+                }
+            }
             if (write_client(clientfd, "Adding a new Course\r\n") == -1)
             {
                 return;
@@ -958,23 +1047,21 @@ void handle_faculty(int clientfd, char *username)
             cin_course(clientfd, course, username);
             write_course(clientfd, course, -1);
 
+            faculty_struct *faculty_data = (faculty_struct *)malloc(sizeof(faculty_struct));
+            if (!read_record(faculty_fd, faculty_data, faculty_index, sizeof(faculty_struct)))
             {
-                faculty_struct *faculty_data = (faculty_struct *)malloc(sizeof(faculty_struct));
-                if (!read_record(faculty_fd, faculty_data, faculty_index, sizeof(faculty_struct)))
-                {
-                    write_client(clientfd, "ERROR reading file");
-                    break;
-                }
-                // faculty_data->status = true;
-                faculty_struct faculty_data_to_write = *faculty_data;
-                strcpy(faculty_data_to_write.courses_offered[faculty_data_to_write.courses_offered_count], course.course_id);
-                faculty_data_to_write.courses_offered_count++;
-                write_faculty(clientfd, faculty_data_to_write, faculty_index);
-                faculty_data_main = faculty_data_to_write;
-
-                // write_record(students_fd, student_data_to_write, student_index, sizeof(faculty_struct));
-                free(faculty_data);
+                write_client(clientfd, "ERROR reading file");
+                break;
             }
+            // faculty_data->status = true;
+            faculty_struct faculty_data_to_write = *faculty_data;
+            strcpy(faculty_data_to_write.courses_offered[faculty_data_to_write.courses_offered_count], course.course_id);
+            faculty_data_to_write.courses_offered_count++;
+            write_faculty(clientfd, faculty_data_to_write, faculty_index);
+            faculty_data_main = faculty_data_to_write;
+
+            // write_record(students_fd, student_data_to_write, student_index, sizeof(faculty_struct));
+            free(faculty_data);
 
             sprintf(buf, "SUCCESSfully added course %s\r\n", course.course_id);
             if (write_client(clientfd, buf) == -1)
@@ -985,13 +1072,133 @@ void handle_faculty(int clientfd, char *username)
         }
         break;
         case '3':
-            break;
+        {
+            char courses_string[BUF_SIZE];
+            char temp[BUF_SIZE];
+            reset_str(courses_string, BUF_SIZE);
+            for (int i = 0; i < faculty_data_main.courses_offered_count; i++)
+            {
+                reset_str(temp, BUF_SIZE);
+                sprintf(temp, "%d: %s\n", i, faculty_data_main.courses_offered[i]);
+                strcat(courses_string, temp);
+            }
+            if (write_client(clientfd, courses_string) == -1)
+            {
+                break;
+            }
+            int course_index_of_course;
+            reset_str(buf, BUF_SIZE);
+            if (read_client(clientfd, buf) == -1)
+            {
+                break;
+            }
+            if (!is_number(buf))
+            {
+                write_client(clientfd, "WRONG option\r\n");
+                break;
+            }
+            course_index_of_course = atoi(buf);
+            int course_index;
+            course_index = validate_course_id(faculty_data_main.courses_offered[course_index_of_course]);
+            if (course_index < 0)
+            {
+                cout << "Course error" << endl;
+                break;
+            }
+            course_struct course_data;
+            if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
+            {
+                cout << "Error reading course file" << endl;
+                break;
+            }
+            course_data.status = !course_data.status;
+            write_course(clientfd, course_data, course_index);
+            reset_str(buf, BUF_SIZE);
+            tostring_course(&course_data, buf);
+            write_client(clientfd, buf);
+            if (write_client(clientfd, "Updated Successfully\r\n") == -1)
+            {
+                cout << "client write error" << endl;
+                break;
+            }
+            sleep(3);
+        }
+        break;
         case '4':
-            break;
+        {
+            char courses_string[BUF_SIZE];
+            char temp[BUF_SIZE];
+            reset_str(courses_string, BUF_SIZE);
+            for (int i = 0; i < faculty_data_main.courses_offered_count; i++)
+            {
+                reset_str(temp, BUF_SIZE);
+                sprintf(temp, "%d: %s\n", i, faculty_data_main.courses_offered[i]);
+                strcat(courses_string, temp);
+            }
+            if (write_client(clientfd, courses_string) == -1)
+            {
+                break;
+            }
+            int course_index_of_course;
+            reset_str(buf, BUF_SIZE);
+            if (read_client(clientfd, buf) == -1)
+            {
+                break;
+            }
+            if (!is_number(buf))
+            {
+                write_client(clientfd, "WRONG option\r\n");
+                break;
+            }
+            course_index_of_course = atoi(buf);
+            int course_index;
+            course_index = validate_course_id(faculty_data_main.courses_offered[course_index_of_course]);
+            if (course_index < 0)
+            {
+                cout << "Course error" << endl;
+                break;
+            }
+            course_struct course_data;
+            if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
+            {
+                cout << "Error reading course file" << endl;
+                break;
+            }
+            bool course_status_bk = course_data.status;
+            int available_seats = course_data.available_seats;
+            char temp_course_id[SMALL_BUF_SIZE];
+            strcpy(temp_course_id, course_data.course_id);
+            cin_course(clientfd, course_data, faculty_data_main.username);
+            course_data.status = course_status_bk;
+            course_data.available_seats = available_seats;
+            strcpy(course_data.course_id, temp_course_id);
+            cout << "course index: " << course_index << endl;
+            write_course(clientfd, course_data, course_index);
+            if (write_client(clientfd, "Updated Successfully\r\n") == -1)
+            {
+                cout << "client write error" << endl;
+                break;
+            }
+            sleep(3);
+        }
+        break;
         case '5':
-            break;
+        {
+            reset_str(buf, BUF_SIZE);
+            write_client(clientfd, "Give the Password (not gonna ask again)\r\n");
+            read_client(clientfd, buf);
+            strcpy(faculty_data_main.password, buf);
+
+            write_faculty(clientfd, faculty_data_main, faculty_index);
+            // write_record(students_fd, student_data_to_write, faculty_index, sizeof(faculty_struct));
+            write_client(clientfd, "Password UPdated\r\n");
+            tostring_faculty(&faculty_data_main, buf);
+            write_client(clientfd, buf);
+            sleep(3);
+        }
+        break;
         case '6':
-            break;
+            return;
         default:
             break;
         }
