@@ -20,24 +20,24 @@ int main()
     };
     some ss, se, *sd;
     // ss = (some *)malloc(sizeof(some));
-    // ss.s = "asdd";
-    strcpy(ss.s, "as");
-    ss.a = 10;
-    ss.b = true;
-    se = ss;
-    sd = new some;
-    ss = *sd;
-    cout << ss.s << endl;
-    cout << se.s << endl;
-    cout << sd->s << endl;
-    cout << ss.a << endl;
-    cout << se.a << endl;
-    ss.s[0] = 'z';
-    cout << ss.s << endl;
-    cout << se.s << endl;
-    cout << sd->s << endl;
-    cout << ss.a << endl;
-    cout << se.a << endl;
+    // // ss.s = "asdd";
+    // strcpy(ss.s, "as");
+    // ss.a = 10;
+    // ss.b = true;
+    // se = ss;
+    // sd = new some;
+    // ss = *sd;
+    // cout << ss.s << endl;
+    // cout << se.s << endl;
+    // cout << sd->s << endl;
+    // cout << ss.a << endl;
+    // cout << se.a << endl;
+    // ss.s[0] = 'z';
+    // cout << ss.s << endl;
+    // cout << se.s << endl;
+    // cout << sd->s << endl;
+    // cout << ss.a << endl;
+    // cout << se.a << endl;
 
     // truncate("shared_file.txt", 0);
     // int fd = open("shared_file.txt", O_RDWR | O_CREAT, 0777);
@@ -74,6 +74,8 @@ int main()
 
     // cout<<regex_search(s,matches, pat_int)<<endl;
     // cout<<matches[0]<<endl;
+    char s[] = "12";
+    cout << atoi(s);
 
     return 0;
 }
