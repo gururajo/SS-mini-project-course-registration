@@ -98,6 +98,34 @@ void tostring_course(course_struct *course_data, char *ret)
     strcpy(ret, string("Name: " + string(course_data->name) + "\nDepartment: " + string(course_data->department) + "\nOffered By: " + string(course_data->offered_by) + "\nTotal Seats: " + string(no_of_seats) + "\nCredits: " + string(credits) + "\nAvailable Seats: " + string(no_of_available_seats) + "\nStatus: " + string((course_data->status) ? "Active" : "Inactive") + "\r\n").c_str());
 }
 
+char *indexed_tostring_char_array(char **array, int n)
+{
+    char *ret_string = (char *)malloc(BUF_SIZE * sizeof(char));
+    char temp[BUF_SIZE];
+    reset_str(ret_string, BUF_SIZE);
+    for (int i = 0; i < n; i++)
+    {
+        reset_str(temp, BUF_SIZE);
+        sprintf(temp, "%d: %s\n", i, array[i]);
+        strcat(ret_string, temp);
+    }
+    return ret_string;
+}
+
+char *tostring_char_array(char *array[], int n)
+{
+    char *ret_string = (char *)malloc(BUF_SIZE * sizeof(char));
+    char temp[BUF_SIZE];
+    reset_str(ret_string, BUF_SIZE);
+    for (int i = 0; i < n; i++)
+    {
+        reset_str(temp, BUF_SIZE);
+        sprintf(temp, "%s\n", array[i]);
+        strcat(ret_string, temp);
+    }
+    return ret_string;
+}
+
 int validate_student_id(char *username)
 {
     cout << "substr: " << substr(username, 2, strlen(username)) << endl;
@@ -922,7 +950,56 @@ void handle_student(int clientfd, char *username)
         switch (revd[0])
         {
         case '1':
-            break;
+        {
+            // char courses_list[course_count][BUF_SIZE];
+            char **courses_list;
+            courses_list = (char **)malloc(course_count * sizeof(char *));
+            for (int i = 0; i < course_count; i++)
+            {
+                courses_list[i] = (char *)malloc(BUF_SIZE);
+            }
+
+            course_struct course;
+            int active_courses = 0;
+            sprintf(courses_list[active_courses++], "%s: %s\n", "Option: ", "Course Name");
+            for (int i = 0; i < course_count; i++)
+            {
+                read_record(course_fd, &course, i, sizeof(course_struct));
+                if (course.status)
+                    sprintf(courses_list[active_courses++], "%d: %s", i, course.name);
+            }
+            sprintf(courses_list[active_courses++], "%s\n", "Give the Option");
+            char *course_list_string;
+            course_list_string = tostring_char_array(courses_list, active_courses);
+            write_client(clientfd, course_list_string);
+            free(course_list_string);
+            reset_str(buf, BUF_SIZE);
+            read_client(clientfd, buf);
+            if (!is_number(buf))
+            {
+                write_client(clientfd, "Invalid Input\r\n");
+                break;
+            }
+            int course_index = atoi(buf);
+            if (course_index >= course_count)
+            {
+                write_client(clientfd, "Not a valid Course\r\n");
+                break;
+            }
+            course_struct course_data;
+            if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
+            {
+                cout << "Error reading course file" << endl;
+                break;
+            }
+            tostring_course(&course_data, buf);
+            if (write_client(clientfd, buf) == -1)
+            {
+                break;
+            }
+            sleep(3);
+        }
+        break;
         case '2':
             break;
         case '3':
