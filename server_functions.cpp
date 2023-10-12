@@ -1049,17 +1049,78 @@ void handle_student(int clientfd, char *username)
                 break;
             }
             sleep(3);
+            cout << "availlble seats: " << course_data.available_seats << endl;
             course_data.available_seats--;
             write_course(clientfd, course_data, course_index);
             strcpy(student_data_main.courses_enrolled[student_data_main.courses_enrolled_count++], course_data.course_id);
             write_student(clientfd, student_data_main, student_index);
-            write_client(clientfd, "Added the Course");
+            write_client(clientfd, "Added the Course\r\n");
         }
         break;
         case '3':
-            break;
+        {
+            char *courses_optted_string;
+            char **courses_optted;
+            courses_optted = (char **)malloc(student_data_main.courses_enrolled_count * sizeof(char *));
+            for (int i = 0; i < student_data_main.courses_enrolled_count; i++)
+            {
+                courses_optted[i] = (char *)malloc(BUF_SIZE);
+                strcpy(courses_optted[i], student_data_main.courses_enrolled[i]);
+            }
+            courses_optted_string = indexed_tostring_char_array(courses_optted, student_data_main.courses_enrolled_count);
+            write_client(clientfd, courses_optted_string);
+            reset_str(buf, BUF_SIZE);
+            read_client(clientfd, buf);
+            if (!is_number(buf))
+            {
+                write_client(clientfd, "Invalid Input\r\n");
+                break;
+            }
+            int option = atoi(buf);
+            for (int i = option; i < student_data_main.courses_enrolled_count - 1; i++)
+            {
+                strcpy(student_data_main.courses_enrolled[i], student_data_main.courses_enrolled[i + 1]);
+            }
+            student_data_main.courses_enrolled_count--;
+            write_student(clientfd, student_data_main, student_index);
+            write_client(clientfd, "Dropped the Course\r\n");
+        }
+        break;
         case '4':
-            break;
+        {
+            char *courses_optted_string;
+            char **courses_optted;
+            courses_optted = (char **)malloc(student_data_main.courses_enrolled_count * sizeof(char *));
+            for (int i = 0; i < student_data_main.courses_enrolled_count; i++)
+            {
+                courses_optted[i] = (char *)malloc(BUF_SIZE);
+                strcpy(courses_optted[i], student_data_main.courses_enrolled[i]);
+            }
+            courses_optted_string = indexed_tostring_char_array(courses_optted, student_data_main.courses_enrolled_count);
+            write_client(clientfd, courses_optted_string);
+            reset_str(buf, BUF_SIZE);
+            read_client(clientfd, buf);
+            if (!is_number(buf))
+            {
+                write_client(clientfd, "Invalid Input\r\n");
+                break;
+            }
+            int option = atoi(buf);
+            int course_index = validate_course_id(student_data_main.courses_enrolled[option]);
+            course_struct course_data;
+            if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
+            {
+                cout << "ERROR" << endl;
+                break;
+            }
+            tostring_course(&course_data, buf);
+            if (write_client(clientfd, buf) == -1)
+            {
+                break;
+            }
+            sleep(3);
+        }
+        break;
         case '5':
         {
             reset_str(buf, BUF_SIZE);
