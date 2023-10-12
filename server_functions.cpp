@@ -956,24 +956,18 @@ void handle_student(int clientfd, char *username)
             courses_list = (char **)malloc(course_count * sizeof(char *));
             for (int i = 0; i < course_count; i++)
             {
-                courses_list[i] = (char *)malloc(BUF_SIZE * sizeof(char));
+                courses_list[i] = (char *)malloc(BUF_SIZE);
             }
-            cout << "i am here" << endl;
+
             course_struct course;
             int active_courses = 0;
-            cout << "sprintf ret: " << sprintf(courses_list[active_courses++], "%s: %s\n", "Option: ", "Course Name") << endl;
-            cout << "headlinr: " << courses_list[active_courses] << endl;
+            sprintf(courses_list[active_courses++], "%s: %s\n", "Option: ", "Course Name");
             for (int i = 0; i < course_count; i++)
             {
                 read_record(course_fd, &course, i, sizeof(course_struct));
-                cout << "i: " << i << "course_count: " << course_count << "course name: " << course.name << endl;
                 if (course.status)
-                {
-                    cout << "sprintf ret:" << sprintf(courses_list[active_courses++], "%d: %s\n", i, course.name) << endl;
-                    cout << "Active vourses: " << courses_list[active_courses] << active_courses << endl;
-                }
+                    sprintf(courses_list[active_courses++], "%d: %s\n", i, course.name);
             }
-            cout << "i am here2" << endl;
             sprintf(courses_list[active_courses++], "%s\n", "Give the Option");
             char *course_list_string;
             course_list_string = tostring_char_array(courses_list, active_courses);
@@ -986,20 +980,18 @@ void handle_student(int clientfd, char *username)
             free(courses_list);
             reset_str(buf, BUF_SIZE);
             read_client(clientfd, buf);
-            cout << "i am here3" << endl;
+
             if (!is_number(buf))
             {
                 write_client(clientfd, "Invalid Input\r\n");
                 break;
             }
             int course_index = atoi(buf);
-            cout << "i am here4" << endl;
             if (course_index >= course_count)
             {
                 write_client(clientfd, "Not a valid Course\r\n");
                 break;
             }
-            cout << "i am here5" << endl;
             course_struct course_data;
             if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
             {
@@ -1011,7 +1003,6 @@ void handle_student(int clientfd, char *username)
             {
                 break;
             }
-            cout << "i am here6" << endl;
             sleep(3);
         }
         break;
