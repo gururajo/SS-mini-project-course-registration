@@ -956,36 +956,50 @@ void handle_student(int clientfd, char *username)
             courses_list = (char **)malloc(course_count * sizeof(char *));
             for (int i = 0; i < course_count; i++)
             {
-                courses_list[i] = (char *)malloc(BUF_SIZE);
+                courses_list[i] = (char *)malloc(BUF_SIZE * sizeof(char));
             }
-
+            cout << "i am here" << endl;
             course_struct course;
             int active_courses = 0;
-            sprintf(courses_list[active_courses++], "%s: %s\n", "Option: ", "Course Name");
+            cout << "sprintf ret: " << sprintf(courses_list[active_courses++], "%s: %s\n", "Option: ", "Course Name") << endl;
+            cout << "headlinr: " << courses_list[active_courses] << endl;
             for (int i = 0; i < course_count; i++)
             {
                 read_record(course_fd, &course, i, sizeof(course_struct));
+                cout << "i: " << i << "course_count: " << course_count << "course name: " << course.name << endl;
                 if (course.status)
-                    sprintf(courses_list[active_courses++], "%d: %s", i, course.name);
+                {
+                    cout << "sprintf ret:" << sprintf(courses_list[active_courses++], "%d: %s\n", i, course.name) << endl;
+                    cout << "Active vourses: " << courses_list[active_courses] << active_courses << endl;
+                }
             }
+            cout << "i am here2" << endl;
             sprintf(courses_list[active_courses++], "%s\n", "Give the Option");
             char *course_list_string;
             course_list_string = tostring_char_array(courses_list, active_courses);
             write_client(clientfd, course_list_string);
             free(course_list_string);
+            for (int i = 0; i < course_count; i++)
+            {
+                free(courses_list[i]);
+            }
+            free(courses_list);
             reset_str(buf, BUF_SIZE);
             read_client(clientfd, buf);
+            cout << "i am here3" << endl;
             if (!is_number(buf))
             {
                 write_client(clientfd, "Invalid Input\r\n");
                 break;
             }
             int course_index = atoi(buf);
+            cout << "i am here4" << endl;
             if (course_index >= course_count)
             {
                 write_client(clientfd, "Not a valid Course\r\n");
                 break;
             }
+            cout << "i am here5" << endl;
             course_struct course_data;
             if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
             {
@@ -997,6 +1011,7 @@ void handle_student(int clientfd, char *username)
             {
                 break;
             }
+            cout << "i am here6" << endl;
             sleep(3);
         }
         break;
@@ -1168,7 +1183,7 @@ void handle_faculty(int clientfd, char *username)
         load_details();
 
         char msg[2 * BUF_SIZE];
-        sprintf(msg, ".......... Welcome to Faculty Menu %s  ..........\n1. View Offering Courses\n2. Add New Course\n3. Activate/Inactivate Course\n4. Update Course Details\n5. Change Password\n6. Logout and Exit\r\nStudents: %d\tFaculties: %d\tCourses: %d\r\n", faculty_data_main.name, student_count, faculty_count, course_count);
+        sprintf(msg, ".......... Welcome to Faculty Menu %s  ..........\n1. View Offering Courses\n2. Add New Course\n3. Remove/Activate Course\n4. Update Course Details\n5. Change Password\n6. Logout and Exit\r\nStudents: %d\tFaculties: %d\tCourses: %d\r\n", faculty_data_main.name, student_count, faculty_count, course_count);
 
         if (write(clientfd, msg, strlen(msg)) == -1)
 
@@ -1312,6 +1327,11 @@ void handle_faculty(int clientfd, char *username)
             if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
             {
                 cout << "Error reading course file" << endl;
+                break;
+            }
+            if (course_data.available_seats != course_data.no_of_seats && course_data.status)
+            {
+                write_client(clientfd, "There are students opted for this course. Please ask them to drop\r\n");
                 break;
             }
             course_data.status = !course_data.status;
