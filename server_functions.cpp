@@ -1077,12 +1077,23 @@ void handle_student(int clientfd, char *username)
                 break;
             }
             int option = atoi(buf);
+            char course_id[SMALL_BUF_SIZE];
+            strcpy(course_id, student_data_main.courses_enrolled[option]);
             for (int i = option; i < student_data_main.courses_enrolled_count - 1; i++)
             {
                 strcpy(student_data_main.courses_enrolled[i], student_data_main.courses_enrolled[i + 1]);
             }
             student_data_main.courses_enrolled_count--;
             write_student(clientfd, student_data_main, student_index);
+            course_struct course_data;
+            int course_index = validate_course_id(course_id);
+            if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
+            {
+                cout << "Error reading course file" << endl;
+                break;
+            }
+            course_data.available_seats++;
+            write_course(clientfd, course_data, course_index);
             write_client(clientfd, "Dropped the Course\r\n");
         }
         break;
