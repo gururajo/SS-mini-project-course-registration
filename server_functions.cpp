@@ -1001,7 +1001,61 @@ void handle_student(int clientfd, char *username)
         }
         break;
         case '2':
-            break;
+        {
+            // char courses_list[course_count][BUF_SIZE];
+            char **courses_list;
+            courses_list = (char **)malloc(course_count * sizeof(char *));
+            for (int i = 0; i < course_count; i++)
+            {
+                courses_list[i] = (char *)malloc(BUF_SIZE);
+            }
+
+            course_struct course;
+            int active_courses = 0;
+            sprintf(courses_list[active_courses++], "%s: %s\n", "Option: ", "Course Name");
+            for (int i = 0; i < course_count; i++)
+            {
+                read_record(course_fd, &course, i, sizeof(course_struct));
+                if (course.status)
+                    sprintf(courses_list[active_courses++], "%d: %s", i, course.name);
+            }
+            sprintf(courses_list[active_courses++], "%s\n", "Give the Option");
+            char *course_list_string;
+            course_list_string = tostring_char_array(courses_list, active_courses);
+            write_client(clientfd, course_list_string);
+            free(course_list_string);
+            reset_str(buf, BUF_SIZE);
+            read_client(clientfd, buf);
+            if (!is_number(buf))
+            {
+                write_client(clientfd, "Invalid Input\r\n");
+                break;
+            }
+            int course_index = atoi(buf);
+            if (course_index >= course_count)
+            {
+                write_client(clientfd, "Not a valid Course\r\n");
+                break;
+            }
+            course_struct course_data;
+            if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
+            {
+                cout << "Error reading course file" << endl;
+                break;
+            }
+            tostring_course(&course_data, buf);
+            if (write_client(clientfd, buf) == -1)
+            {
+                break;
+            }
+            sleep(3);
+            course_data.available_seats--;
+            write_course(clientfd, course_data, course_index);
+            strcpy(student_data_main.courses_enrolled[student_data_main.courses_enrolled_count++], course_data.course_id);
+            write_student(clientfd, student_data_main, student_index);
+            write_client(clientfd, "Added the Course");
+        }
+        break;
         case '3':
             break;
         case '4':
