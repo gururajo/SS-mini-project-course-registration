@@ -11,16 +11,18 @@ using namespace std;
 // --------------#defines-----------------------------------------
 #define BUF_SIZE 1024
 #define SMALL_BUF_SIZE 50
+#define BIG_BUF_SIZE 100
 // ---------------------global variables-------------------------------------------
 int student_count, faculty_count, course_count;
 int students_fd = open("data/students.dat", O_RDWR | O_CREAT, 0666);
 int faculty_fd = open("data/faculty.dat", O_RDWR | O_CREAT, 0666);
 int course_fd = open("data/course.dat", O_RDWR | O_CREAT, 0666);
 int detailsfd = open("data/details.dat", O_RDWR);
+struct flock flock_struct;
 // --------------------structures--------------------------------------------
 struct student_struct
 {
-    char name[SMALL_BUF_SIZE], email[SMALL_BUF_SIZE], username[SMALL_BUF_SIZE], password[SMALL_BUF_SIZE], address[BUF_SIZE];
+    char name[SMALL_BUF_SIZE], email[SMALL_BUF_SIZE], username[SMALL_BUF_SIZE], password[SMALL_BUF_SIZE], address[BIG_BUF_SIZE];
     char courses_enrolled[6][SMALL_BUF_SIZE];
     int age, courses_enrolled_count;
     bool status;
@@ -45,7 +47,7 @@ struct student_struct
 
 struct faculty_struct
 {
-    char name[SMALL_BUF_SIZE], department[SMALL_BUF_SIZE], designation[SMALL_BUF_SIZE], email[SMALL_BUF_SIZE], address[BUF_SIZE], username[SMALL_BUF_SIZE], password[SMALL_BUF_SIZE];
+    char name[SMALL_BUF_SIZE], department[SMALL_BUF_SIZE], designation[SMALL_BUF_SIZE], email[SMALL_BUF_SIZE], address[BIG_BUF_SIZE], username[SMALL_BUF_SIZE], password[SMALL_BUF_SIZE];
     char courses_offered[20][SMALL_BUF_SIZE];
     int courses_offered_count;
     faculty_struct()
@@ -101,7 +103,7 @@ struct course_struct
 
 // --------------------Function declarations--------------------------------------------
 bool read_record(int filefd, void *add, int index, size_t size);
-
+bool read_lock(int filefd, int index, size_t size, bool);
 // --------------------Function Definitions--------------------------------
 
 int is_number(char *str)
@@ -134,6 +136,63 @@ char *substr(char *arr, int begin, int len)
         res[i] = *(arr + begin + i);
     res[len] = 0;
     return res;
+}
+
+bool read_lock(int filefd, int index, size_t size)
+{
+    flock_struct.l_type = F_RDLCK;
+    flock_struct.l_whence = SEEK_SET;
+    if (index != -1)
+    {
+        flock_struct.l_start = index * size;
+        flock_struct.l_len = size;
+    }
+    else
+    {
+        flock_struct.l_start = 0;
+        flock_struct.l_len = 0;
+    }
+    if (fcntl(filefd, F_SETLKW, &flock_struct) == -1)
+        return false;
+    return true;
+}
+
+bool unlock_file(int filefd, int index, size_t size)
+{
+    flock_struct.l_type = F_UNLCK;
+    flock_struct.l_whence = SEEK_SET;
+    if (index != -1)
+    {
+        flock_struct.l_start = index * size;
+        flock_struct.l_len = size;
+    }
+    else
+    {
+        flock_struct.l_start = 0;
+        flock_struct.l_len = 0;
+    }
+    if (fcntl(filefd, F_SETLKW, &flock_struct) == -1)
+        return false;
+    return true;
+}
+
+bool write_lock(int filefd, int index, size_t size)
+{
+    flock_struct.l_type = F_WRLCK;
+    flock_struct.l_whence = SEEK_SET;
+    if (index != -1)
+    {
+        flock_struct.l_start = index * size;
+        flock_struct.l_len = size;
+    }
+    else
+    {
+        flock_struct.l_start = 0;
+        flock_struct.l_len = 0;
+    }
+    if (fcntl(filefd, F_SETLKW, &flock_struct) == -1)
+        return false;
+    return true;
 }
 
 void tostring_student(student_struct *student, char *ret)
@@ -558,13 +617,21 @@ void write_student(int clientfd, student_struct &student, int index)
     }
     else
         lseek(students_fd, index * sizeof(student), SEEK_SET);
+    cout << "Getting write lock for student :" << endl;
+    write_lock(students_fd, index, sizeof(student_struct));
+    cout << "Got write lock for student :" << endl;
     write(students_fd, &student, sizeof(student));
+    unlock_file(students_fd, index, sizeof(student_struct));
     load_details();
     if (index == -1)
     {
         student_count++;
         lseek(detailsfd, 0, SEEK_SET);
+        cout << "Getting write lock for details :" << endl;
+        write_lock(detailsfd, 0, sizeof(int));
+        cout << "Got write lock for details :" << endl;
         write(detailsfd, &student_count, sizeof(student_count));
+        unlock_file(detailsfd, 0, sizeof(int));
     }
 }
 
@@ -650,13 +717,22 @@ void write_faculty(int clientfd, faculty_struct &faculty, int index)
     }
     else
         lseek(faculty_fd, index * sizeof(faculty), SEEK_SET);
+
+    cout << "Getting write lock for Faculty :" << endl;
+    write_lock(faculty_fd, index, sizeof(faculty_struct));
+    cout << "Got write lock for Faculty :" << endl;
     write(faculty_fd, &faculty, sizeof(faculty));
+    unlock_file(faculty_fd, index, sizeof(faculty_struct));
     load_details();
     if (index == -1)
     {
         faculty_count++;
         lseek(detailsfd, sizeof(int), SEEK_SET);
+        cout << "Getting write lock for details :" << endl;
+        write_lock(detailsfd, 1, sizeof(int));
+        cout << "Got write lock for details :" << endl;
         write(detailsfd, &faculty_count, sizeof(faculty_count));
+        unlock_file(detailsfd, 1, sizeof(int));
     }
 }
 
@@ -734,13 +810,23 @@ void write_course(int clinetfd, course_struct &course, int index)
     }
     else
         lseek(course_fd, index * sizeof(course), SEEK_SET);
+
+    cout << "Getting write lock for course :" << endl;
+    write_lock(course_fd, index, sizeof(course_struct));
+    cout << "Got write lock for course :" << endl;
     write(course_fd, &course, sizeof(course));
+    unlock_file(course_fd, index, sizeof(course_struct));
     load_details();
     if (index == -1)
     {
         course_count++;
         lseek(detailsfd, 2 * sizeof(int), SEEK_SET);
+
+        cout << "Getting write lock for details :" << endl;
+        write_lock(detailsfd, 2, sizeof(int));
+        cout << "Got write lock for details :" << endl;
         write(detailsfd, &course_count, sizeof(course_count));
+        unlock_file(detailsfd, 2, sizeof(int));
     }
 }
 
@@ -748,11 +834,16 @@ bool read_record(int filefd, void *add, int index, size_t size)
 {
     cout << "index: " << index << " size: " << size << endl;
     cout << "lseek: " << lseek(filefd, index * size, SEEK_SET) << endl;
+    cout << "locking file for reading: " << filefd << endl;
+    read_lock(filefd, index, size);
+    cout << "Got the lock for reading: " << filefd << endl;
     if (read(filefd, add, size) == -1)
     {
         perror("read");
+        unlock_file(filefd, index, size);
         return false;
     }
+    unlock_file(filefd, index, size);
     return true;
 }
 
