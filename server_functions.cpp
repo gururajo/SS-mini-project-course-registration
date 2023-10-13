@@ -367,9 +367,13 @@ void load_details()
     // }
     int facultyfd, studentsfd;
     lseek(detailsfd, 0, SEEK_SET);
+    cout << "Getting read lock for details" << endl;
+    read_lock(detailsfd, -1, sizeof(student_count));
+    cout << "Got lock for details" << endl;
     read(detailsfd, &student_count, sizeof(student_count));
     read(detailsfd, &faculty_count, sizeof(faculty_count));
     read(detailsfd, &course_count, sizeof(course_count));
+    unlock_file(detailsfd, -1, sizeof(int));
 }
 
 bool login(int clientfd, char *username, int &user_type)
@@ -459,6 +463,12 @@ bool login(int clientfd, char *username, int &user_type)
             return false;
         }
         cout << "read password" << student_data->password << endl;
+        if (!student_data->status)
+        {
+            strcpy(revd, "Inactive Student not allowed\n\r");
+            write(clientfd, revd, strlen(revd));
+            return false;
+        }
         if (strcmp(revd, student_data->password) == 0)
         {
             reset_str(revd, BUF_SIZE);
@@ -469,6 +479,12 @@ bool login(int clientfd, char *username, int &user_type)
                 return false;
             }
             return true;
+        }
+        else
+        {
+            strcpy(revd, "Invalid password\n\r");
+            write(clientfd, revd, strlen(revd));
+            return false;
         }
     }
     else if (revd[0] == 'F' && revd[1] == 'C')
@@ -1167,22 +1183,22 @@ void handle_student(int clientfd, char *username)
         {
             // char courses_list[course_count][BUF_SIZE];
             char **courses_list;
-            courses_list = (char **)malloc(course_count * sizeof(char *));
-            for (int i = 0; i < course_count; i++)
+            courses_list = (char **)malloc((course_count + 3) * sizeof(char *));
+            for (int i = 0; i < course_count + 3; i++)
             {
                 courses_list[i] = (char *)malloc(BUF_SIZE);
             }
 
             course_struct course;
             int active_courses = 0;
-            sprintf(courses_list[active_courses++], "%s: %s\n", "Option: ", "Course Name");
+            sprintf(courses_list[active_courses++], "%s: %s", "Option: ", "Course Name");
             for (int i = 0; i < course_count; i++)
             {
                 read_record(course_fd, &course, i, sizeof(course_struct));
                 if (course.status)
                     sprintf(courses_list[active_courses++], "%d: %s", i, course.name);
             }
-            sprintf(courses_list[active_courses++], "%s\n", "Give the Option");
+            sprintf(courses_list[active_courses++], "%s", "Give the Option");
             char *course_list_string;
             course_list_string = tostring_char_array(courses_list, active_courses);
             write_client(clientfd, course_list_string);
