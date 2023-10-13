@@ -24,6 +24,23 @@ struct student_struct
     char courses_enrolled[6][SMALL_BUF_SIZE];
     int age, courses_enrolled_count;
     bool status;
+    student_struct()
+    {
+        strcpy(name, "");
+        strcpy(email, "");
+        strcpy(username, "");
+        strcpy(password, "");
+        strcpy(address, "");
+        strcpy(courses_enrolled[0], "");
+        strcpy(courses_enrolled[1], "");
+        strcpy(courses_enrolled[2], "");
+        strcpy(courses_enrolled[3], "");
+        strcpy(courses_enrolled[4], "");
+        strcpy(courses_enrolled[5], "");
+        age = 0;
+        courses_enrolled_count = 0;
+        status = false;
+    }
 };
 
 struct faculty_struct
@@ -31,6 +48,37 @@ struct faculty_struct
     char name[SMALL_BUF_SIZE], department[SMALL_BUF_SIZE], designation[SMALL_BUF_SIZE], email[SMALL_BUF_SIZE], address[BUF_SIZE], username[SMALL_BUF_SIZE], password[SMALL_BUF_SIZE];
     char courses_offered[20][SMALL_BUF_SIZE];
     int courses_offered_count;
+    faculty_struct()
+    {
+        strcpy(name, "");
+        strcpy(department, "");
+        strcpy(designation, "");
+        strcpy(email, "");
+        strcpy(address, "");
+        strcpy(username, "");
+        strcpy(password, "");
+        strcpy(courses_offered[0], "");
+        strcpy(courses_offered[1], "");
+        strcpy(courses_offered[2], "");
+        strcpy(courses_offered[3], "");
+        strcpy(courses_offered[4], "");
+        strcpy(courses_offered[5], "");
+        strcpy(courses_offered[6], "");
+        strcpy(courses_offered[7], "");
+        strcpy(courses_offered[8], "");
+        strcpy(courses_offered[9], "");
+        strcpy(courses_offered[10], "");
+        strcpy(courses_offered[11], "");
+        strcpy(courses_offered[12], "");
+        strcpy(courses_offered[13], "");
+        strcpy(courses_offered[14], "");
+        strcpy(courses_offered[15], "");
+        strcpy(courses_offered[16], "");
+        strcpy(courses_offered[17], "");
+        strcpy(courses_offered[18], "");
+        strcpy(courses_offered[19], "");
+        courses_offered_count = 0;
+    }
 };
 
 struct course_struct
@@ -38,7 +86,19 @@ struct course_struct
     char name[SMALL_BUF_SIZE], course_id[SMALL_BUF_SIZE], department[SMALL_BUF_SIZE], offered_by[SMALL_BUF_SIZE];
     int no_of_seats, available_seats, credits;
     bool status;
+    course_struct()
+    {
+        strcpy(name, "");
+        strcpy(course_id, "");
+        strcpy(department, "");
+        strcpy(offered_by, "");
+        no_of_seats = 0;
+        available_seats = 0;
+        credits = 0;
+        status = false;
+    }
 };
+
 // --------------------Function declarations--------------------------------------------
 bool read_record(int filefd, void *add, int index, size_t size);
 
@@ -332,7 +392,7 @@ bool login(int clientfd, char *username, int &user_type)
             write(clientfd, revd, strlen(revd));
             return false;
         }
-        student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+        student_struct *student_data = new student_struct();
         if (!read_record(students_fd, student_data, index, sizeof(student_struct)))
         {
             strcpy(revd, "Some error occurred");
@@ -762,7 +822,7 @@ void handle_admin(int clientfd, char *username)
             if (!read_student_id(clientfd, buf, student_index))
                 break;
             cout << "student_index: " << student_index << endl;
-            student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            student_struct *student_data = new student_struct();
             if (!read_record(students_fd, student_data, student_index, sizeof(student_struct)))
             {
                 write_client(clientfd, "ERROR reading file");
@@ -817,7 +877,8 @@ void handle_admin(int clientfd, char *username)
             int student_index;
             if (!read_student_id(clientfd, buf, student_index))
                 break;
-            student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            // student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            student_struct *student_data = new student_struct();
             if (!read_record(students_fd, student_data, student_index, sizeof(student_struct)))
             {
                 write_client(clientfd, "ERROR reading file");
@@ -839,7 +900,8 @@ void handle_admin(int clientfd, char *username)
             int student_index;
             if (!read_student_id(clientfd, buf, student_index))
                 break;
-            student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            // student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            student_struct *student_data = new student_struct();
             if (!read_record(students_fd, student_data, student_index, sizeof(student_struct)))
             {
                 write_client(clientfd, "ERROR reading file");
@@ -865,7 +927,8 @@ void handle_admin(int clientfd, char *username)
             int student_index;
             if (!read_student_id(clientfd, buf, student_index))
                 break;
-            student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            // student_struct *student_data = (student_struct *)malloc(sizeof(student_struct));
+            student_struct *student_data = new student_struct();
             if (!read_record(students_fd, student_data, student_index, sizeof(student_struct)))
             {
                 write_client(clientfd, "ERROR reading file");
@@ -953,27 +1016,30 @@ void handle_student(int clientfd, char *username)
         {
             // char courses_list[course_count][BUF_SIZE];
             char **courses_list;
-            courses_list = (char **)malloc(course_count * sizeof(char *));
-            for (int i = 0; i < course_count; i++)
+            courses_list = (char **)malloc((course_count + 2) * sizeof(char *));
+            for (int i = 0; i < course_count + 2; i++)
             {
                 courses_list[i] = (char *)malloc(BUF_SIZE);
             }
 
-            course_struct course;
             int active_courses = 0;
-            sprintf(courses_list[active_courses++], "%s: %s\n", "Option: ", "Course Name");
-            for (int i = 0; i < course_count; i++)
+            sprintf(courses_list[active_courses++], "%s: %s", "Option: ", "Course Name");
+            for (int i = 0; i < course_count + 2; i++)
             {
+                course_struct course;
                 read_record(course_fd, &course, i, sizeof(course_struct));
                 if (course.status)
-                    sprintf(courses_list[active_courses++], "%d: %s\n", i, course.name);
+                {
+                    sprintf(courses_list[active_courses++], "%d: %s", i, course.name);
+                }
             }
-            sprintf(courses_list[active_courses++], "%s\n", "Give the Option");
+            sprintf(courses_list[active_courses++], "%s", "Give the Option");
+
             char *course_list_string;
             course_list_string = tostring_char_array(courses_list, active_courses);
             write_client(clientfd, course_list_string);
             free(course_list_string);
-            for (int i = 0; i < course_count; i++)
+            for (int i = 0; i < course_count + 2; i++)
             {
                 free(courses_list[i]);
             }
