@@ -103,7 +103,7 @@ struct course_struct
 
 // --------------------Function declarations--------------------------------------------
 bool read_record(int filefd, void *add, int index, size_t size);
-bool read_lock(int filefd, int index, size_t size, bool);
+bool read_lock(int filefd, int index, size_t size);
 // --------------------Function Definitions--------------------------------
 
 int is_number(char *str)
@@ -1123,6 +1123,10 @@ void handle_student(int clientfd, char *username)
         {
             // char courses_list[course_count][BUF_SIZE];
             char **courses_list;
+            if(student_data_main.courses_enrolled_count == 0){
+                write_client(clientfd, "No Courses Optted\r\n");
+                break;
+            }
             courses_list = (char **)malloc((course_count + 2) * sizeof(char *));
             for (int i = 0; i < course_count + 2; i++)
             {
@@ -1135,7 +1139,7 @@ void handle_student(int clientfd, char *username)
             {
                 course_struct course;
                 read_record(course_fd, &course, i, sizeof(course_struct));
-                if (course.status)
+                if (course.status || true)
                 {
                     sprintf(courses_list[active_courses++], "%d: %s", i, course.name);
                 }
@@ -1228,6 +1232,10 @@ void handle_student(int clientfd, char *username)
                 break;
             }
             sleep(3);
+            if(!course_data.status){
+                write_client(clientfd, "Not an active Course\r\n");
+                break;
+            }
             cout << "availlble seats: " << course_data.available_seats << endl;
             course_data.available_seats--;
             write_course(clientfd, course_data, course_index);
@@ -1256,6 +1264,10 @@ void handle_student(int clientfd, char *username)
                 break;
             }
             int option = atoi(buf);
+            if(option >= student_data_main.courses_enrolled_count){
+                write_client(clientfd, "Invalid Option\r\n");
+                break;
+            }
             char course_id[SMALL_BUF_SIZE];
             strcpy(course_id, student_data_main.courses_enrolled[option]);
             for (int i = option; i < student_data_main.courses_enrolled_count - 1; i++)
@@ -1296,6 +1308,10 @@ void handle_student(int clientfd, char *username)
                 break;
             }
             int option = atoi(buf);
+            if(option >= student_data_main.courses_enrolled_count){
+                write_client(clientfd, "Wrong Option\r\n");
+                break;
+            }
             int course_index = validate_course_id(student_data_main.courses_enrolled[option]);
             course_struct course_data;
             if (!read_record(course_fd, &course_data, course_index, sizeof(course_struct)))
