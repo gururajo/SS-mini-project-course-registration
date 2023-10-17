@@ -10,6 +10,7 @@ using namespace std;
 
 #define BUF_SIZE 1024
 int clientSocketfd;
+bool echo=true;
 
 void reset_str(char *str)
 {
@@ -39,9 +40,9 @@ void *readFromServer(void *)
             cout << "Server closed the connection." << endl;
             break;
         }
-        // if (strstr(buffer, "Menu") != NULL)
+        // if (strstr(buffer, "Password:") != NULL)
         // {
-        //     system("clear");
+        //     system("stty -echo");
         // }
         // cout << "Received: " << bytesRead << endl;
         // buffer[bytesRead] = '\0'; // Null-terminate the received data
@@ -58,6 +59,9 @@ void *cinfromuser(void *)
         // cout<<"readyto read"<<endl;
         // cin >> userInput;
         cin.getline(userInput, sizeof(userInput));
+        // if(!echo){
+        //     system("stty echo");
+        // }
         // cout<<"GIT:"<<userInput<<endl;
         if (strcmp(userInput, "quit") == 0)
         {
